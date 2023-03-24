@@ -1,3 +1,5 @@
+## TODO:
+- [ ] Faire la query gjson pour reformater la reponse de la requete instagram
 
 ![Logo](https://user-images.githubusercontent.com/64506580/159311466-f720a877-6c76-403a-904d-134addbd6a86.png)
 
@@ -32,6 +34,12 @@ Change the environment variables define in `.env` that are used to setup and dep
 └── ...
 ```
 
+Start the services
+```bash
+docker-compose up -d
+```
+
+## 💾 Add config
 Customize the `telegraf.conf` file which will be mounted to the container as a persistent volume
 
 ```bash
@@ -43,21 +51,29 @@ Customize the `telegraf.conf` file which will be mounted to the container as a p
 └── ...
 ```
 
-Start the services
-```bash
-docker-compose up -d
+For an input of type JSON my solutions is to reformat with gjson to send it to influxdb automaticaly. 
+- Copy a sample json response you get from api call then give it to chat gpt and specify wich field you want in your final object.
+- Test the gjson query [here](https://gjson.dev/)
+- tell which will be tags, the rest is fields (check for strings values on telegraf data format docs)
+
+Example:
+```toml
+  # url of your call
+  urls = [
+    "https://graph.facebook.com/${FACEBOOK_PAGE_ID}/posts?fields=id,message,likes.summary(true),comments.summary(true)"
+  ]
+  # name of measurement
+  name_override="facebook_stats"
+  data_format = "json_v2"
+  
+  # Set the HTTP header if needed
+  [inputs.http.headers]
+    Authorization = "Bearer ${FACEBOOK_ACCESS_TOKEN}"
+  
+  [[inputs.http.json_v2]]
+    [[inputs.http.json_v2.object]] # will get metrics for fields of each object of the array 
+      # query to get array of objects with what you want
+      path="data.#.{id:id,message:message,likes_total_count:likes.summary.total_count,comments_total_count:comments.summary.total_count}"
+      # here i speciify only tags since i already got rid of what i didn't need (you could exclude things see doc)
+      tags=["id","message"]
 ```
-## Docker Images Used (Official & Verified)
-
-[**Telegraf**](https://hub.docker.com/_/telegraf) / `1.19`
-
-[**InfluxDB**](https://hub.docker.com/_/influxdb) / `2.1.1`
-
-[**Grafana-OSS**](https://hub.docker.com/r/grafana/grafana-oss) / `8.4.3`
-
-
-
-## Contributing
-
-Contributions are always welcome!
-
